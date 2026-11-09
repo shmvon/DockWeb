@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DockWeb">
+  <meta name="theme-color" content="#09090b">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <title>DockWeb</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --border: rgba(255, 255, 255, 0.1);
+      --accent: #3b82f6;
+      --text: #f4f4f5;
+      --subtext: #a1a1aa;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .viewport {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+    }
+    .viewport::-webkit-scrollbar { display: none; }
+    .page {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right), calc((100% - 1000px) / 2))
+               calc(env(safe-area-inset-bottom) + 40px) max(16px, env(safe-area-inset-left), calc((100% - 1000px) / 2));
+      overflow-y: auto;
+    }
+    .narrow { max-width: 560px; margin: 0 auto; }
+    .header {
+      padding: 16px 0 12px;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--subtext);
+    }
+    .empty { color: var(--subtext); font-size: 14px; }
+
+    /* Page 1: Dock */
+    /* Columns follow the screen width: 4 on a portrait phone, 7-8 in landscape, more on tablets. */
+    .dock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+      gap: 10px;
+    }
+    .dock-sep {
+      grid-column: 1 / -1;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--subtext); padding: 8px 2px 0; border-top: 1px solid var(--border); margin-top: 4px;
+    }
+    .dock-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 10px 4px 14px;
+      position: relative;
+      touch-action: pan-x pan-y;
+      transition: transform 0.12s, background 0.12s;
+    }
+    .dock-tile.pressed { transform: scale(0.93); background: rgba(255,255,255,0.12); }
+    .dock-tile .ic {
+      display: block; width: 78%; max-width: 72px; aspect-ratio: 1 / 1; height: auto;
+      object-fit: contain; pointer-events: none; flex: none;
+    }
+    .dock-tile .ph { background: rgba(255,255,255,0.1); border-radius: 22%; transform: scale(0.82); }
+    .dock-tile span {
+      font-size: 11px; color: var(--subtext); margin-top: 4px; line-height: 1.3;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+      pointer-events: none;
+    }
+    .status-dot {
+      position: absolute; bottom: 5px; width: 4px; height: 4px;
+      border-radius: 50%; background: transparent;
+    }
+    .status-dot.active { background: #fff; }
+    .hint { margin-top: 16px; font-size: 12px; color: var(--subtext); line-height: 1.6; }
+
+    /* Page 2: Controls */
+    .card-section { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .btn-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .btn-row.two { grid-template-columns: repeat(2, 1fr); }
+    button {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 16px 8px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+    }
+    button:active { background: rgba(255, 255, 255, 0.15); }
+    button.danger { color: var(--danger); }
+    button.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
+    button.wide { grid-column: span 2; }
+    .slider-card {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .slider-card.disabled { opacity: 0.45; }
+    .slider-card label { font-size: 12px; color: var(--subtext); display: flex; justify-content: space-between; }
+    input[type=range] { width: 100%; accent-color: var(--accent); }
+
+    /* Page 3: Folders + drives */
+    .place-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 8px; }
+    .place-grid button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 14px 12px; min-width: 0; }
+    .place-grid .pt { display: flex; flex-direction: column; min-width: 0; }
+    .place-grid .pt b, .place-grid .pt small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .place-grid .pt b { font-weight: 500; }
+    .place-grid .pt small { font-size: 11px; color: var(--subtext); margin-top: 2px; }
+    .place-grid .pi { font-size: 20px; line-height: 1; flex: none; }
+    .volume-list { display: flex; flex-direction: column; gap: 10px; }
+    .volume-card {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 8px 8px 8px 16px;
+    }
+    .volume-name { font-weight: 500; font-size: 15px; flex: 1; padding: 10px 0; overflow: hidden; text-overflow: ellipsis; }
+    .volume-card button { padding: 12px 16px; }
+
+    /* Page dots */
+    .dots {
+      position: fixed; left: 0; right: 0;
+      bottom: calc(env(safe-area-inset-bottom) + 10px);
+      display: flex; justify-content: center; gap: 4px;
+    }
+    .dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.25); background-clip: content-box; padding: 8px; box-sizing: content-box; cursor: pointer; }
+    .viewport.dragging { cursor: grabbing; }
+    .dock-tile { cursor: pointer; }
+    .dots i.on { background-color: #fff; }
+
+    /* Toast */
+    .toast {
+      position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%;
+      transform: translate(-50%, -80px); background: #27272a; border: 1px solid var(--border);
+      padding: 10px 16px; border-radius: 999px; font-size: 13px; transition: transform 0.25s;
+      max-width: 90vw; z-index: 20;
+    }
+    .toast.show { transform: translate(-50%, 0); }
+
+    /* Login */
+    .login {
+      position: fixed; inset: 0; background: var(--bg); z-index: 10;
+      display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px;
+    }
+    .login.show { display: flex; }
+    .login h1 { margin: 0; font-size: 22px; font-weight: 600; }
+    .login p { margin: 0; color: var(--subtext); font-size: 14px; text-align: center; }
+    .login input {
+      width: 220px; text-align: center; font-size: 28px; letter-spacing: 0.4em;
+      padding: 12px; border-radius: 14px; border: 1px solid var(--border);
+      background: var(--card-bg); color: var(--text); font-family: inherit;
+    }
+    .login input:focus { outline: 2px solid var(--accent); }
+    .login button { width: 220px; background: var(--accent); border-color: var(--accent); }
+    .login .err { color: var(--danger); min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="viewport" id="viewport">
+    <div class="page">
+      <div class="header">Dock</div>
+      <div class="dock-grid" id="dock-grid"></div>
+      <div class="hint">Tap: open · Double tap: fullscreen · Hold: App Exposé · Swipe up: quit</div>
+    </div>
+
+    <div class="page"><div class="narrow">
+      <div class="header">Media</div>
+      <div class="card-section">
+        <div class="btn-row">
+          <button data-sys="prev">⏮︎ Prev</button>
+          <button data-sys="playpause">⏯︎ Play/Pause</button>
+          <button data-sys="next">Next ⏭︎</button>
+        </div>
+        <div class="btn-row">
+          <button data-sys="voldown">🔉 Vol −</button>
+          <button data-sys="mute">🔇 Mute</button>
+          <button data-sys="volup">🔊 Vol +</button>
+        </div>
+        <div class="slider-card disabled" id="bri-card">
+          <label><span>Display Brightness</span><span id="bri-val">needs <code>brightness</code> CLI</span></label>
+          <input type="range" min="0" max="100" value="70" id="bri" disabled>
+        </div>
+      </div>
+
+      <div class="header">Power &amp; Session</div>
+      <div class="card-section">
+        <div class="btn-row two">
+          <button data-sys="displaysleep">Sleep Display</button>
+          <button data-sys="sleep">System Sleep</button>
+          <button class="danger" data-sys="logout" data-confirm>Log Out</button>
+          <button class="danger" data-sys="restart" data-confirm>Restart</button>
+          <button class="danger wide" data-sys="shutdown" data-confirm>Shut Down</button>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="page">
+      <div class="header">Folders</div>
+      <div class="place-grid" id="place-grid"></div>
+      <div class="header">External Drives</div>
+      <div class="volume-list" id="volume-list"></div>
+    </div>
+  </div>
+
+  <div class="dots" id="dots"><i class="on"></i><i></i><i></i></div>
+  <div class="toast" id="toast"></div>
+
+  <form class="login" id="login">
+    <h1>DockWeb</h1>
+    <p>Enter the PIN from the DockWeb menu-bar icon on your Mac</p>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" aria-label="PIN">
+    <div class="err" id="login-err"></div>
+    <button type="submit">Unlock</button>
+  </form>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    // ------------------------------------------------------------ api
+    let authed = false;
+    const loginEl = $('login');
+
+    function showLogin(msg = '') {
+      authed = false;
+      $('login-err').textContent = msg;
+      loginEl.classList.add('show');
+    }
+
+    async function api(url, data) {
+      const opts = data === undefined ? {} : {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+      };
+      let res;
+      try { res = await fetch(url, opts); }
+      catch { throw new Error("Can't reach the Mac. Is server.js running?"); }
+      if (res.status === 401 && url !== '/api/login') { showLogin(); throw new Error('unauthorized'); }
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      return body;
+    }
+
+    let toastTimer;
+    function toast(msg) {
+      const t = $('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+    }
+    function act(url, data) {
+      if (navigator.vibrate) navigator.vibrate(10);
+      return api(url, data).catch(e => { if (e.message !== 'unauthorized') toast(e.message); });
+    }
+
+    loginEl.addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        await api('/api/login', { pin: $('pin').value });
+        $('pin').value = '';
+        loginEl.classList.remove('show');
+        start();
+      } catch (err) {
+        $('login-err').textContent = err.message;
+        $('pin').value = '';
+      }
+    });
+
+    // ------------------------------------------------------------ system buttons
+    document.querySelectorAll('[data-sys]').forEach(btn => {
+      let armTimer;
+      btn.addEventListener('click', () => {
+        const command = btn.dataset.sys;
+        if (btn.hasAttribute('data-confirm')) {
+          if (!btn.classList.contains('armed')) {
+            const label = btn.textContent;
+            btn.dataset.label = label;
+            btn.textContent = 'Tap again to confirm';
+            btn.classList.add('armed');
+            armTimer = setTimeout(() => { btn.classList.remove('armed'); btn.textContent = label; }, 3000);
+            return;
+          }
+          clearTimeout(armTimer);
+          btn.classList.remove('armed');
+          btn.textContent = btn.dataset.label;
+          act('/api/system/action', { command, confirm: true });
+          return;
+        }
+        act('/api/system/action', { command });
+      });
+    });
+
+    const bri = $('bri');
+    bri.addEventListener('input', () => { $('bri-val').textContent = bri.value + '%'; });
+    bri.addEventListener('change', () => act('/api/system/action', { command: 'brightness', value: Number(bri.value) }));
+
+    async function loadSystem() {
+      const info = await api('/api/system');
+      if (info.brightness) {
+        bri.disabled = false;
+        $('bri-card').classList.remove('disabled');
+        if (info.brightnessValue != null) bri.value = info.brightnessValue;
+        $('bri-val').textContent = bri.value + '%';
+      }
+    }
+
+    // ------------------------------------------------------------ dock + gestures
+    const grid = $('dock-grid');
+    const tiles = new Map(); // id -> element
+
+    function makeTile(app) {
+      const tile = document.createElement('div');
+      tile.className = 'dock-tile';
+      const icon = makeIcon(app);
+      const label = document.createElement('span');
+      label.textContent = app.label;
+      const dot = document.createElement('div');
+      dot.className = 'status-dot';
+      tile.append(icon, label, dot);
+      attachGestures(tile, app.id);
+      return tile;
+    }
+
+    function makeIcon(app) {
+      if (!app.iconUrl) return Object.assign(document.createElement('div'), { className: 'ic ph' });
+      return Object.assign(document.createElement('img'), { className: 'ic', src: app.iconUrl, alt: '', draggable: false });
+    }
+
+    const DOUBLE_TAP_MS = 250, HOLD_MS = 500, MOVE_PX = 12, SWIPE_PX = 50;
+
+    function attachGestures(tile, id) {
+      let startX = 0, startY = 0, holdTimer = null, held = false, tapTimer = null, down = false;
+      const send = action => act('/api/dock/action', { action, id });
+
+      tile.addEventListener('pointerdown', e => {
+        down = true; held = false;
+        startX = e.clientX; startY = e.clientY;
+        tile.classList.add('pressed');
+        try { tile.setPointerCapture(e.pointerId); } catch {} // keep tracking when a mouse drag leaves the tile
+        holdTimer = setTimeout(() => {
+          held = true; holdTimer = null;
+          tile.classList.remove('pressed');
+          send('expose');
+        }, HOLD_MS);
+      });
+
+      tile.addEventListener('pointermove', e => {
+        if (!down || !holdTimer) return;
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) > MOVE_PX) {
+          clearTimeout(holdTimer); holdTimer = null;
+        }
+      });
+
+      const cancel = () => {
+        down = false; clearTimeout(holdTimer); holdTimer = null;
+        tile.classList.remove('pressed');
+      };
+      tile.addEventListener('pointercancel', cancel);
+      tile.addEventListener('contextmenu', e => e.preventDefault());
+
+      tile.addEventListener('pointerup', e => {
+        if (!down) return;
+        const dx = e.clientX - startX, dy = e.clientY - startY;
+        cancel();
+        if (held) return;
+        if (dy < -SWIPE_PX && Math.abs(dy) > Math.abs(dx) * 1.5) { send('quit'); return; }
+        if (Math.hypot(dx, dy) > MOVE_PX) return;
+        if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; send('fullscreen'); return; }
+        tapTimer = setTimeout(() => { tapTimer = null; send('select'); }, DOUBLE_TAP_MS);
+      });
+    }
+
+    const sep = Object.assign(document.createElement('div'), { className: 'dock-sep', textContent: 'Open' });
+
+    async function loadDock() {
+      const apps = await api('/api/dock');
+      const order = [];
+      apps.forEach(app => {
+        let tile = tiles.get(app.id);
+        if (!tile) { tile = makeTile(app); tiles.set(app.id, tile); }
+        else if (app.iconUrl && !tile.querySelector('img')) tile.replaceChild(makeIcon(app), tile.firstChild);
+        tile.querySelector('.status-dot').classList.toggle('active', app.isRunning);
+        if (!app.pinned && !order.includes(sep)) order.push(sep);
+        order.push(tile);
+      });
+      const ids = new Set(apps.map(a => a.id));
+      for (const [id, tile] of tiles) if (!ids.has(id)) { tile.remove(); tiles.delete(id); }
+      if (!order.includes(sep)) sep.remove();
+      order.forEach((el, i) => { if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null); });
+      grid.querySelector('.empty')?.remove();
+      if (!apps.length) grid.innerHTML = '<div class="empty">No dock apps found.</div>';
+    }
+
+    // ------------------------------------------------------------ volumes
+    let volSig = '';
+    async function loadVolumes() {
+      const vols = await api('/api/volumes');
+      const sig = JSON.stringify(vols);
+      if (sig === volSig) return;
+      volSig = sig;
+      const list = $('volume-list');
+      list.replaceChildren();
+      if (!vols.length) {
+        const d = document.createElement('div');
+        d.className = 'empty'; d.textContent = 'No external drives detected.';
+        list.append(d); return;
+      }
+      for (const vol of vols) {
+        const card = document.createElement('div'); card.className = 'volume-card';
+        const name = document.createElement('div'); name.className = 'volume-name'; name.textContent = vol.name;
+        const open = document.createElement('button'); open.textContent = 'Open';
+        const openIt = () => act('/api/volumes/action', { action: 'open', name: vol.name });
+        name.addEventListener('click', openIt); open.addEventListener('click', openIt);
+        const eject = document.createElement('button'); eject.textContent = 'Eject';
+        eject.addEventListener('click', async () => {
+          eject.disabled = true;
+          await act('/api/volumes/action', { action: 'eject', name: vol.name });
+          loadVolumes().catch(() => {});
+        });
+        card.append(name, open, eject); list.append(card);
+      }
+    }
+
+    // ------------------------------------------------------------ folders
+    const PLACE_ICONS = { desktop: '🖥️', documents: '📄', downloads: '⬇️', icloud: '☁️', gdrive: '🟢', onedrive: '🔷' };
+    let placeSig = '';
+    async function loadPlaces() {
+      const places = await api('/api/places');
+      const sig = JSON.stringify(places);
+      if (sig === placeSig) return;
+      placeSig = sig;
+      $('place-grid').replaceChildren(...places.map(p => {
+        const b = document.createElement('button');
+        b.title = 'Open in Finder on the Mac';
+        const text = Object.assign(document.createElement('span'), { className: 'pt' });
+        text.append(Object.assign(document.createElement('b'), { textContent: p.name }));
+        if (p.sub) text.append(Object.assign(document.createElement('small'), { textContent: p.sub }));
+        b.append(Object.assign(document.createElement('span'), { className: 'pi', textContent: PLACE_ICONS[p.kind] || '📁' }), text);
+        b.addEventListener('click', () => act('/api/places/action', { id: p.id }).then(r => r && toast(`Opened ${p.name} on the Mac`)));
+        return b;
+      }));
+    }
+
+    // ------------------------------------------------------------ page dots + mouse navigation
+    const viewport = $('viewport');
+    const pageCount = viewport.children.length;
+    const goTo = i => viewport.scrollTo({ left: Math.max(0, Math.min(pageCount - 1, i)) * viewport.clientWidth, behavior: 'smooth' });
+    const currentPage = () => Math.round(viewport.scrollLeft / viewport.clientWidth);
+
+    [...$('dots').children].forEach((d, i) => d.addEventListener('click', () => goTo(i)));
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') goTo(currentPage() + 1);
+      if (e.key === 'ArrowLeft') goTo(currentPage() - 1);
+    });
+
+    // Mouse drag to switch pages (touch uses native scrolling).
+    let drag = null;
+    viewport.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('input, button')) return;
+      drag = { x: e.clientX, y: e.clientY, left: viewport.scrollLeft, active: false, dx: 0 };
+    });
+    viewport.addEventListener('pointermove', e => {
+      if (!drag) return;
+      drag.dx = e.clientX - drag.x;
+      if (!drag.active) {
+        if (Math.abs(drag.dx) < 10 || Math.abs(drag.dx) < Math.abs(e.clientY - drag.y)) return;
+        drag.active = true;
+        viewport.classList.add('dragging');
+        viewport.style.scrollSnapType = 'none';
+      }
+      viewport.scrollLeft = drag.left - drag.dx;
+    });
+    const endDrag = () => {
+      if (!drag) return;
+      const d = drag; drag = null;
+      if (!d.active) return;
+      viewport.classList.remove('dragging');
+      const w = viewport.clientWidth, start = Math.round(d.left / w);
+      const target = Math.abs(d.dx) > w * 0.15 ? start + (d.dx < 0 ? 1 : -1) : start;
+      viewport.style.scrollSnapType = '';
+      goTo(target);
+    };
+    viewport.addEventListener('pointerup', endDrag);
+    viewport.addEventListener('pointercancel', endDrag);
+    // Remember the page so rotation/resizing lands on the same one instead of between two pages.
+    let pageIdx = 0, resizing = false;
+    viewport.addEventListener('scroll', () => {
+      if (resizing) return;
+      pageIdx = currentPage();
+      [...$('dots').children].forEach((d, i) => d.classList.toggle('on', i === pageIdx));
+    }, { passive: true });
+    const resnap = () => {
+      resizing = true;
+      viewport.style.scrollSnapType = 'none';
+      viewport.scrollLeft = pageIdx * viewport.clientWidth;
+      requestAnimationFrame(() => { viewport.style.scrollSnapType = ''; viewport.scrollLeft = pageIdx * viewport.clientWidth; resizing = false; });
+    };
+    new ResizeObserver(resnap).observe(viewport);
+    screen.orientation?.addEventListener('change', () => setTimeout(resnap, 150));
+
+    // ------------------------------------------------------------ lifecycle
+    let timers = [];
+    function poll(fn, ms) {
+      const tick = () => { if (authed && !document.hidden) fn().catch(() => {}); };
+      tick(); timers.push(setInterval(tick, ms));
+    }
+    function start() {
+      authed = true;
+      timers.forEach(clearInterval); timers = [];
+      loadSystem().catch(() => {});
+      poll(loadDock, 4000);
+      poll(loadVolumes, 5000);
+      poll(loadPlaces, 30000);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && authed) { loadDock().catch(() => {}); loadVolumes().catch(() => {}); loadPlaces().catch(() => {}); }
+    });
+
+    // Probe the session; fall back to the PIN prompt.
+    api('/api/system').then(start).catch(() => { if (!authed) showLogin(); });
+  </script>
+</body>
+</html>

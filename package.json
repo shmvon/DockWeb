@@ -1,0 +1,19 @@
+{
+  "name": "dockweb",
+  "version": "0.2.0",
+  "description": "Self-hosted phone touch deck for your Mac: mirrors the Dock, media keys, power controls, folders and external drives.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "build": "./build.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shmvon/DockWeb.git"
+  }
+}
