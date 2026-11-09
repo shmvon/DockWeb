@@ -123,6 +123,15 @@
     button.danger { color: var(--danger); }
     button.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
     button.wide { grid-column: span 2; }
+    /* Keep-screen-on switch: a dot that breathes while active */
+    button.toggle { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    button.toggle .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--subtext); opacity: 0.5; flex: none; }
+    button.toggle[aria-pressed="true"] { border-color: var(--accent); color: #fff; background: rgba(59,130,246,0.15); }
+    button.toggle[aria-pressed="true"] .pulse { background: var(--accent); opacity: 1; animation: breathe 2.4s ease-in-out infinite; }
+    @keyframes breathe { 0%, 100% { transform: scale(0.7); opacity: 0.45; } 50% { transform: scale(1.25); opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { button.toggle[aria-pressed="true"] .pulse { animation: none; } }
+    /* Tiny black video that keeps the phone awake (NoSleep.js technique); invisible on the dark background */
+    .nosleep { position: fixed; left: 0; bottom: 0; width: 2px; height: 2px; pointer-events: none; }
     .slider-card {
       background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
       padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;
@@ -219,7 +228,8 @@
           <button data-sys="sleep">System Sleep</button>
           <button class="danger" data-sys="logout" data-confirm>Log Out</button>
           <button class="danger" data-sys="restart" data-confirm>Restart</button>
-          <button class="danger wide" data-sys="shutdown" data-confirm>Shut Down</button>
+          <button class="danger" data-sys="shutdown" data-confirm>Shut Down</button>
+          <button class="toggle" id="awake" aria-pressed="false" title="Stop this phone from locking while DockWeb is open"><i class="pulse"></i>Keep screen on</button>
         </div>
       </div>
     </div></div>
@@ -331,6 +341,56 @@
         $('bri-val').textContent = bri.value + '%';
       }
     }
+
+    // ------------------------------------------------------------ keep screen on
+    // Wake Lock API when available (needs HTTPS); otherwise loop a tiny silent video, which iOS/Android
+    // treat as media playback and so don't auto-lock. The switch remembers its state on this phone.
+    const NOSLEEP_MP4 = 'data:video/mp4;base64,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';
+    const awakeBtn = $('awake');
+    let awakeOn = false, wakeLock = null, nosleep = null;
+
+    async function acquireAwake() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => { wakeLock = null; });
+          return true;
+        } catch {}
+      }
+      if (!nosleep) {
+        nosleep = Object.assign(document.createElement('video'), { className: 'nosleep', src: NOSLEEP_MP4, muted: true, loop: true });
+        nosleep.setAttribute('muted', '');
+        nosleep.setAttribute('playsinline', '');
+        nosleep.setAttribute('aria-hidden', 'true');
+        // Some iOS versions stall at the loop point; jump back before the end.
+        nosleep.addEventListener('timeupdate', () => { if (nosleep.currentTime > 1.5) nosleep.currentTime = 0.2; });
+        document.body.append(nosleep);
+      }
+      try { await nosleep.play(); return true; } catch { return false; }
+    }
+    function releaseAwake() {
+      wakeLock?.release().catch(() => {}); wakeLock = null;
+      nosleep?.pause();
+    }
+    function setAwake(on) {
+      awakeOn = on;
+      awakeBtn.setAttribute('aria-pressed', String(on));
+      try { localStorage.setItem('dw-awake', on ? '1' : ''); } catch {}
+    }
+    awakeBtn.addEventListener('click', async () => {
+      if (awakeOn) { releaseAwake(); setAwake(false); return; }
+      setAwake(true);
+      if (!(await acquireAwake())) { setAwake(false); toast("This browser won't keep the screen on"); }
+    });
+    // The system drops the lock / pauses the video when the app is hidden; take it again on return.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && awakeOn && !wakeLock) acquireAwake();
+    });
+    // Restore the saved choice; iOS only starts media after a touch, so also retry on the first one.
+    try { if (localStorage.getItem('dw-awake')) { setAwake(true); acquireAwake(); } } catch {}
+    document.addEventListener('pointerdown', () => {
+      if (awakeOn && !wakeLock && (!nosleep || nosleep.paused)) acquireAwake();
+    }, { capture: true });
 
     // ------------------------------------------------------------ dock + gestures
     const grid = $('dock-grid');

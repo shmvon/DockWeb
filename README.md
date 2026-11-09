@@ -7,7 +7,7 @@ No dependencies beyond Node.js 18+.
 | Page | What it does |
 |---|---|
 | **Dock** | Finder, your pinned apps and other running apps, with running-dots. Tap: open · double tap: fullscreen · hold: App Exposé · swipe up: quit |
-| **Media & power** | Play/pause, previous/next, volume, mute, optional brightness slider; sleep display, sleep, log out, restart, shut down (destructive actions need a second tap) |
+| **Media & power** | Play/pause, previous/next, volume, mute, optional brightness slider; sleep display, sleep, log out, restart, shut down (destructive actions need a second tap); **Keep screen on** switch so the phone doesn't auto-lock while DockWeb is open |
 | **Folders & drives** | Open Desktop, Documents, Downloads, iCloud Drive, Google Drive and OneDrive in Finder; open or eject external drives |
 
 The layout adapts to the screen: 4 columns on a portrait phone, more in landscape or on a tablet.
