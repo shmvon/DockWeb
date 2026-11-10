@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var server: Process?
     private var log: FileHandle?
     private var buffer = ""
-    private var urls: [String] = []
+    private var urls: [(url: String, label: String)] = []
     private var pin = ""
     private var status = "Starting…"
     private var quitting = false
@@ -124,7 +124,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         while let nl = buffer.firstIndex(of: "\n") {
             let line = buffer[..<nl].trimmingCharacters(in: .whitespaces)
             buffer.removeSubrange(...nl)
-            if line.hasPrefix("http://") { urls.append(line); status = "Running on port \(port)"; restartDelay = 1 }
+            if line.hasPrefix("http://") {
+                // "http://host:port   (label)"
+                let url = String(line.prefix { !$0.isWhitespace })
+                var label = ""
+                if let o = line.firstIndex(of: "("), let c = line.lastIndex(of: ")"), o < c { label = String(line[line.index(after: o)..<c]) }
+                urls.append((url, label)); status = "Running on port \(port)"; restartDelay = 1
+            }
             else if line.hasPrefix("PIN:") { pin = String(line.dropFirst(4).trimmingCharacters(in: .whitespaces).prefix { !$0.isWhitespace }) }
             else if line.contains("EADDRINUSE") { status = "Port \(port) is in use by another app" }
         }
@@ -174,9 +180,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !urls.isEmpty {
             menu.addItem(.separator())
             menu.addItem(disabled("Open on your phone (click to copy):"))
-            for u in urls { menu.addItem(item(u, #selector(copyItem(_:)), represented: u)) }
+            for u in urls {
+                let i = item(u.url, #selector(copyItem(_:)), represented: u.url)
+                if !u.label.isEmpty {
+                    let t = NSMutableAttributedString(string: u.url + "  ")
+                    t.append(NSAttributedString(string: u.label, attributes: [.foregroundColor: NSColor.secondaryLabelColor]))
+                    i.attributedTitle = t
+                }
+                menu.addItem(i)
+            }
         }
         if !pin.isEmpty { menu.addItem(item("PIN: \(pin)", #selector(copyItem(_:)), represented: pin)) }
+        menu.addItem(item("Change PIN…", #selector(changePin)))
+        menu.addItem(item("Connection Help…", #selector(showHelp)))
 
         menu.addItem(.separator())
         menu.addItem(item("Open in Browser", #selector(openBrowser)))
@@ -232,6 +248,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let s = server, s.isRunning { s.terminate() } else { startServer() }
     }
     @objc private func quit() { NSApp.terminate(nil) }
+
+    // MARK: PIN + help
+
+    @objc private func changePin() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Change PIN"
+        alert.informativeText = "Enter a new PIN of 4 to 12 digits. Phones that are signed in will need to enter the new PIN."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.placeholderString = "e.g. 2468"
+        field.stringValue = pin
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        while alert.runModal() == .alertFirstButtonReturn {
+            let new = field.stringValue.trimmingCharacters(in: .whitespaces)
+            guard (4...12).contains(new.count), new.allSatisfy({ $0.isASCII && $0.isNumber }) else {
+                alert.informativeText = "The PIN must be 4 to 12 digits (0–9). Try again."
+                continue
+            }
+            let file = dataDir.appendingPathComponent("config.json")
+            var cfg = (try? JSONSerialization.jsonObject(with: Data(contentsOf: file))) as? [String: Any] ?? [:]
+            cfg["pin"] = new
+            cfg["sessions"] = [String]() // sign out every phone
+            do {
+                let data = try JSONSerialization.data(withJSONObject: cfg, options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: file, options: .atomic)
+                try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+                writeLog("--- PIN changed from the menu\n")
+                restartServer()
+            } catch {
+                let err = NSAlert(); err.messageText = "Couldn't save the PIN"; err.informativeText = error.localizedDescription; err.runModal()
+            }
+            if ProcessInfo.processInfo.environment["DOCKWEB_PIN"] != nil {
+                let note = NSAlert(); note.messageText = "DOCKWEB_PIN is set"; note.informativeText = "The DOCKWEB_PIN environment variable overrides the saved PIN."; note.runModal()
+            }
+            return
+        }
+    }
+
+    @objc private func showHelp() {
+        NSApp.activate(ignoringOtherApps: true)
+        let pick = { (label: String) in self.urls.first { $0.label == label }?.url }
+        let lan = pick("Wi-Fi / LAN") ?? "the Wi-Fi / LAN address"
+        let ts = pick("Tailscale") ?? "the Tailscale address (…ts.net)"
+        let alert = NSAlert()
+        alert.messageText = "Connecting your phone"
+        alert.informativeText = """
+        Direct, on the same Wi-Fi
+        Open \(lan) in Safari on your phone. Works only while the phone and Mac share a network.
+
+        Tailscale, from anywhere
+        1. Install Tailscale on the Mac and the phone and sign in with the same account.
+        2. Turn on MagicDNS in the Tailscale admin console (on by default).
+        3. Open \(ts) on the phone. The connection is encrypted and works on any network.
+
+        Then
+        Enter the PIN, and in Safari choose Share → Add to Home Screen for a full-screen app.
+
+        Addresses marked "other VPN" belong to other VPN apps on this Mac and usually aren't reachable from the phone. Click any address in the menu to copy it.
+        """
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Tailscale Download")
+        if alert.runModal() == .alertSecondButtonReturn {
+            NSWorkspace.shared.open(URL(string: "https://tailscale.com/download")!)
+        }
+    }
 }
 
 // Helper mode: `DockWeb --keys media <NX_KEYTYPE>` or `DockWeb --keys key <keycode> [cmd,ctrl,alt,shift]`.

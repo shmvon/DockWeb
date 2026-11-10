@@ -416,11 +416,40 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  const urls = Object.values(os.networkInterfaces()).flat()
-    .filter(i => i.family === 'IPv4' && !i.internal).map(i => `http://${i.address}:${PORT}`);
+/** Tailscale's MagicDNS name and IPs for this Mac, if Tailscale is running. */
+async function tailscaleInfo() {
+  for (const cli of ['/Applications/Tailscale.app/Contents/MacOS/Tailscale', 'tailscale']) {
+    try {
+      const st = JSON.parse(await run(cli, ['status', '--json'], { timeout: 4000 }));
+      if (st.BackendState !== 'Running' || !st.Self) return null;
+      return { name: (st.Self.DNSName || '').replace(/\.$/, ''), ips: st.Self.TailscaleIPs || [] };
+    } catch {}
+  }
+  return null;
+}
+
+/** Addresses the phone can use, labelled by where they come from, best first. */
+async function phoneUrls() {
+  const ts = await tailscaleInfo();
+  const out = [];
+  if (ts?.name) out.push([`http://${ts.name}:${PORT}`, 'Tailscale']);
+  const rank = { 'Tailscale': 1, 'Wi-Fi / LAN': 2 };
+  const ifaces = Object.entries(os.networkInterfaces()).flatMap(([name, list]) =>
+    list.filter(i => i.family === 'IPv4' && !i.internal && !i.address.startsWith('169.254.')).map(i => {
+      const label = ts?.ips.includes(i.address) ? 'Tailscale'
+        : /^(en|bridge)\d/.test(name) ? 'Wi-Fi / LAN'
+        : /^utun\d/.test(name) ? `other VPN, ${name}` : name;
+      return [`http://${i.address}:${PORT}`, label];
+    }));
+  ifaces.sort((a, b) => (rank[a[1]] || 9) - (rank[b[1]] || 9));
+  return [...out, ...ifaces];
+}
+
+server.listen(PORT, HOST, async () => {
+  const urls = await phoneUrls();
   console.log('DockWeb running. Open on your phone (same Wi-Fi or Tailscale):');
-  (urls.length ? urls : [`http://localhost:${PORT}`]).forEach(u => console.log('  ' + u));
+  if (!urls.length) urls.push([`http://localhost:${PORT}`, 'this Mac']);
+  for (const [u, label] of urls) console.log(`  ${u}   (${label})`);
   console.log(`PIN: ${config.pin}   (stored in config.json; override with DOCKWEB_PIN)`);
 });
 

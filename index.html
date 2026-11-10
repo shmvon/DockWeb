@@ -159,8 +159,10 @@
     .switch-row input:checked { background: var(--accent); }
     .switch-row input:checked::after { transform: translateX(18px); }
 
+    .gestures { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
+
     /* Interface options */
-    body.no-titles .header.sec, body.no-titles .hint.sec { display: none; }
+    body.no-titles .header.sec { display: none; }
     body.no-titles .dock-sep { font-size: 0; padding: 0; margin: 4px 0; }
     body.no-titles .page { padding-top: calc(env(safe-area-inset-top) + 16px); }
     body.no-labels .dock-tile span, body.no-labels .btn-row .lbl { display: none; }
@@ -211,8 +213,8 @@
       <div class="header sec">Media</div>
       <div class="card-section">
         <div class="btn-row">
-          <button data-sys="playpause" data-icon="playpause">Play/Pause</button>
           <button data-sys="prev" data-icon="prev">Previous</button>
+          <button data-sys="playpause" data-icon="playpause">Play/Pause</button>
           <button data-sys="next" data-icon="next">Next</button>
           <button data-sys="mute" data-icon="mute">Mute</button>
           <button data-sys="voldown" data-icon="voldown">Volume −</button>
@@ -237,7 +239,6 @@
     <div class="page">
       <div class="header sec">Dock</div>
       <div class="dock-grid" id="dock-grid"></div>
-      <div class="hint sec">Tap: bring to front · Double tap: App Exposé · Hold: full screen · Triple tap: quit</div>
     </div>
 
     <div class="page">
@@ -250,11 +251,13 @@
     <div class="page"><div class="narrow">
       <div class="header">Interface</div>
       <div class="switch-list">
-        <label class="switch-row"><span>Hide section titles<small>Dock, Open, Media, Power &amp; Session, Folders, External Drives, and the gesture hint</small></span><input type="checkbox" data-ui="no-titles"></label>
+        <label class="switch-row"><span>Hide section titles<small>Dock, Open, Media, Power &amp; Session, Folders, External Drives</small></span><input type="checkbox" data-ui="no-titles"></label>
         <label class="switch-row"><span>Hide icon labels<small>Text under the icons on the Media and Dock pages</small></span><input type="checkbox" data-ui="no-labels"></label>
         <label class="switch-row"><span>Hide running markers<small>The dot under open apps</small></span><input type="checkbox" data-ui="no-markers"></label>
       </div>
       <div class="hint">These settings are stored on this phone.</div>
+      <div class="header">Dock gestures</div>
+      <div class="gestures">Tap: 1 activate / hide • 2 exposé • 3 quit. Hold: full screen.</div>
     </div></div>
   </div>
 

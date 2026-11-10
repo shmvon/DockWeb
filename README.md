@@ -7,9 +7,9 @@ No dependencies beyond Node.js 18+.
 | Page | What it does |
 |---|---|
 | 1. **Media & power** | Icon tiles like the Dock: play/pause, previous/next, mute, volume, display sleep, brightness; sleep, restart, shut down, log out (destructive actions need a second tap) |
-| 2. **Dock** (start page) | Finder, your pinned apps and other running apps, with running-dots. Tap: bring to front (tap again to hide) · double tap: App Exposé · hold: full screen · triple tap: quit |
+| 2. **Dock** (start page) | Finder, your pinned apps and other running apps, with running-dots. Tap: 1 activate / hide • 2 Exposé • 3 quit. Hold: full screen |
 | 3. **Folders & drives** | Open Desktop, Documents, Downloads, iCloud Drive, Google Drive and OneDrive in Finder; tap a drive to open it, ⏏︎ to eject |
-| 4. **Interface** | Hide section titles, icon labels or running markers (saved per phone) |
+| 4. **Interface** | Hide section titles, icon labels or running markers (saved per phone); gesture reference |
 
 The layout adapts to the screen: 4 columns on a portrait phone, more in landscape or on a tablet.
 Swipe sideways (or use the dots / arrow keys) to switch pages.
@@ -26,8 +26,10 @@ open /Applications/DockWeb.app
 `build.sh` compiles a small menu-bar launcher (needs the Xcode Command Line Tools: `xcode-select --install`) and bundles
 the server into `/Applications/DockWeb.app`. Use `./build.sh --no-install` to build into `./dist` instead.
 
-DockWeb then lives in the **menu bar**. Its menu shows the addresses to open on your phone, the PIN (click to copy),
-an **Open at Login** toggle, the log and a restart button.
+DockWeb then lives in the **menu bar**. Its menu shows the addresses to open on your phone, labelled
+Tailscale (including your MagicDNS name), Wi-Fi / LAN or other VPN, and the PIN (click either to copy). It also has
+**Change PIN…** (signs out all phones), **Connection Help…** (direct Wi-Fi vs Tailscale), an **Open at Login** toggle,
+the log and a restart button.
 
 ### macOS permissions (one-time)
 
