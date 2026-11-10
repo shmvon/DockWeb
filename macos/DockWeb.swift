@@ -95,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         env["PATH"] = "\(URL(fileURLWithPath: node).deletingLastPathComponent().path):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         env["DOCKWEB_DATA"] = dataDir.path
         env["PORT"] = String(port)
+        env["DOCKWEB_HELPER"] = Bundle.main.executablePath ?? ""
         p.environment = env
 
         let pipe = Pipe()
@@ -231,6 +232,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let s = server, s.isRunning { s.terminate() } else { startServer() }
     }
     @objc private func quit() { NSApp.terminate(nil) }
+}
+
+// Helper mode: `DockWeb --keys media <NX_KEYTYPE>` or `DockWeb --keys key <keycode> [cmd,ctrl,alt,shift]`.
+// The server calls the app's own binary for this, so the events come from the identity that holds
+// Accessibility. (Posting from JXA/osascript is silently dropped on recent macOS.)
+func runKeyHelper(_ args: [String]) -> Int32 {
+    guard AXIsProcessTrusted() else { print("noperm"); return 0 }
+    func post(_ e: CGEvent?) { e?.post(tap: .cghidEventTap) }
+    if args.first == "media", args.count > 1, let key = Int(args[1]) {
+        for down in [true, false] {
+            let f = down ? 0xa00 : 0xb00
+            post(NSEvent.otherEvent(with: .systemDefined, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(f)),
+                                    timestamp: 0, windowNumber: 0, context: nil, subtype: 8,
+                                    data1: (key << 16) | f, data2: -1)?.cgEvent)
+            usleep(20_000)
+        }
+    } else if args.first == "key", args.count > 1, let code = CGKeyCode(args[1]) {
+        let names: [String: CGEventFlags] = ["cmd": .maskCommand, "ctrl": .maskControl, "alt": .maskAlternate, "shift": .maskShift]
+        let flags = (args.count > 2 ? args[2] : "").split(separator: ",").reduce(CGEventFlags()) { $0.union(names[String($1)] ?? []) }
+        let src = CGEventSource(stateID: .hidSystemState)
+        for down in [true, false] {
+            let e = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: down)
+            e?.flags = flags
+            post(e)
+        }
+    } else { print("usage"); return 2 }
+    print("ok"); return 0
+}
+
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "--keys" {
+    exit(runKeyHelper(Array(CommandLine.arguments.dropFirst(2))))
 }
 
 let app = NSApplication.shared

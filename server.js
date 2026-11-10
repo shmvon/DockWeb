@@ -173,7 +173,10 @@ async function dockPayload() {
 const KEY = { expose: ['125', 'ctrl'], fullscreen: ['3', 'cmd,ctrl'] };
 
 async function postKeys(...args) {
-  if (await jxa('keys.js', ...args) === 'noperm') throw httpError(403, PERMISSION_HINT);
+  // Key events are posted by the DockWeb.app binary (it holds the Accessibility grant).
+  const helper = process.env.DOCKWEB_HELPER;
+  if (!helper) throw httpError(501, 'Keyboard and media control need DockWeb.app (run ./build.sh)');
+  if (await run(helper, ['--keys', ...args]) === 'noperm') throw httpError(403, PERMISSION_HINT);
 }
 
 async function dockAction({ action, id }) {

@@ -6,9 +6,10 @@ No dependencies beyond Node.js 18+.
 
 | Page | What it does |
 |---|---|
-| **Dock** | Finder, your pinned apps and other running apps, with running-dots. Tap: open · double tap: fullscreen · hold: App Exposé · swipe up: quit |
-| **Media & power** | Play/pause, previous/next, volume, mute, optional brightness slider; sleep display, sleep, log out, restart, shut down (destructive actions need a second tap); **Keep screen on** switch so the phone doesn't auto-lock while DockWeb is open |
-| **Folders & drives** | Open Desktop, Documents, Downloads, iCloud Drive, Google Drive and OneDrive in Finder; open or eject external drives |
+| 1. **Media & power** | Play/pause, previous/next, volume, mute, optional brightness slider; sleep display, sleep, log out, restart, shut down (destructive actions need a second tap) |
+| 2. **Dock** (start page) | Finder, your pinned apps and other running apps, with running-dots. Tap: bring to front · double tap: App Exposé · hold: full screen · triple tap: quit |
+| 3. **Folders & drives** | Open Desktop, Documents, Downloads, iCloud Drive, Google Drive and OneDrive in Finder; open or eject external drives |
+| 4. **Interface** | Hide section titles, app names or running markers (saved per phone) |
 
 The layout adapts to the screen: 4 columns on a portrait phone, more in landscape or on a tablet.
 Swipe sideways (or use the dots / arrow keys) to switch pages.
@@ -71,7 +72,7 @@ Optional: `brew install brightness` enables the brightness slider (may not work 
 |---|---|
 | `server.js` | HTTP server and API |
 | `index.html` | The phone UI (single page, no build step) |
-| `scripts/*.js` | JXA helpers: Dock contents, running apps, icons, key events, quitting apps |
+| `scripts/*.js` | JXA helpers: Dock contents, running apps, icons, quitting apps (key and media events are posted by the app binary, `DockWeb --keys`) |
 | `macos/` | Menu-bar launcher (Swift) and `Info.plist` |
 | `build.sh` | Builds `DockWeb.app` |
 | `icon-png.js` | Draws the DockWeb icon (PWA and app icon) |
