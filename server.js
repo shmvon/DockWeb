@@ -184,6 +184,8 @@ async function dockAction({ action, id }) {
   if (!app) throw httpError(404, 'Unknown app');
   switch (action) {
     case 'select':
+      // Like a Dock toggle: tapping the app that is already in front hides it again.
+      if (app.bundleId && await jxa('app.js', 'hide-if-front', app.bundleId) === 'hidden') break;
       await run('open', [app.path]);
       break;
     case 'expose':
@@ -194,7 +196,7 @@ async function dockAction({ action, id }) {
       break;
     case 'quit':
       if (!app.bundleId) throw httpError(400, 'App has no bundle id');
-      await jxa('quit.js', app.bundleId);
+      await jxa('app.js', 'quit', app.bundleId);
       runningCache.at = 0;
       break;
     default:
@@ -205,22 +207,13 @@ async function dockAction({ action, id }) {
 // ---------------------------------------------------------------- system
 
 const PERMISSION_HINT = 'Allow DockWeb under System Settings → Privacy & Security → Accessibility';
-const MEDIA_KEYS = { volup: 0, voldown: 1, mute: 7, playpause: 16, next: 17, prev: 18 };
+const MEDIA_KEYS = { volup: 0, voldown: 1, briup: 2, bridown: 3, mute: 7, playpause: 16, next: 17, prev: 18 };
 const DESTRUCTIVE = new Set(['logout', 'restart', 'shutdown']);
-
-async function hasBrightness() {
-  try { await run('brightness', ['-l']); return true; } catch { return false; }
-}
 
 async function systemAction({ command, value, confirm }) {
   if (command in MEDIA_KEYS) return postKeys('media', String(MEDIA_KEYS[command]));
   if (DESTRUCTIVE.has(command) && confirm !== true) throw httpError(400, 'Confirmation required');
   switch (command) {
-    case 'brightness': {
-      const v = Number(value);
-      if (!Number.isFinite(v) || v < 0 || v > 100) throw httpError(400, 'Bad value');
-      return run('brightness', [String(v / 100)]);
-    }
     case 'displaysleep': return run('pmset', ['displaysleepnow']);
     case 'sleep': return run('pmset', ['sleepnow']);
     // These three need System Events (macOS asks once for Automation).
@@ -232,15 +225,7 @@ async function systemAction({ command, value, confirm }) {
 }
 
 async function systemInfo() {
-  const brightness = await hasBrightness();
-  let current = null;
-  if (brightness) {
-    try {
-      const m = (await run('brightness', ['-l'])).match(/brightness\s+([0-9.]+)/);
-      if (m) current = Math.round(parseFloat(m[1]) * 100);
-    } catch {}
-  }
-  return { brightness, brightnessValue: current };
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------- places (folders on the Mac)

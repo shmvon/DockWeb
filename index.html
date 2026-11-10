@@ -110,7 +110,7 @@
     /* Page 2: Controls */
     .card-section { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
     .btn-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .btn-row.two { grid-template-columns: repeat(2, 1fr); }
+        .btn-row button { min-height: 56px; padding: 8px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     button {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -124,13 +124,6 @@
     button:active { background: rgba(255, 255, 255, 0.15); }
     button.danger { color: var(--danger); }
     button.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
-    .slider-card {
-      background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
-      padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;
-    }
-    .slider-card.disabled { opacity: 0.45; }
-    .slider-card label { font-size: 12px; color: var(--subtext); display: flex; justify-content: space-between; }
-    input[type=range] { width: 100%; accent-color: var(--accent); }
 
     /* Page 3: Folders + drives */
     .place-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 8px; }
@@ -140,13 +133,15 @@
     .place-grid .pt b { font-weight: 500; }
     .place-grid .pt small { font-size: 11px; color: var(--subtext); margin-top: 2px; }
     .place-grid .pi { font-size: 20px; line-height: 1; flex: none; }
-    .volume-list { display: flex; flex-direction: column; gap: 10px; }
+    .volume-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
     .volume-card {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 8px 8px 8px 16px;
+      display: flex; align-items: center; gap: 6px; min-width: 0; cursor: pointer;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 4px 4px 4px 12px;
     }
-    .volume-name { font-weight: 500; font-size: 15px; flex: 1; padding: 10px 0; overflow: hidden; text-overflow: ellipsis; }
-    .volume-card button { padding: 12px 16px; }
+    .volume-card:active { background: rgba(255,255,255,0.15); }
+    .volume-name { flex: 1; min-width: 0; font-weight: 500; font-size: 14px; padding: 10px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .volume-card .eject { flex: none; width: 40px; height: 40px; padding: 0; border-radius: 10px; font-size: 16px; color: var(--subtext); }
+    .volume-list .empty { grid-column: 1 / -1; }
 
     /* Page 4: Interface */
     .switch-list { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
@@ -211,24 +206,20 @@
       <div class="card-section">
         <div class="btn-row">
           <button data-sys="prev">⏮︎ Prev</button>
-          <button data-sys="playpause">⏯︎ Play/Pause</button>
+          <button data-sys="playpause">⏯︎ Play</button>
           <button data-sys="next">Next ⏭︎</button>
-        </div>
-        <div class="btn-row">
           <button data-sys="voldown">🔉 Vol −</button>
           <button data-sys="mute">🔇 Mute</button>
           <button data-sys="volup">🔊 Vol +</button>
-        </div>
-        <div class="slider-card disabled" id="bri-card">
-          <label><span>Display Brightness</span><span id="bri-val">needs <code>brightness</code> CLI</span></label>
-          <input type="range" min="0" max="100" value="70" id="bri" disabled>
+          <button data-sys="bridown">🔅 Bright −</button>
+          <button data-sys="displaysleep">🌙 Display</button>
+          <button data-sys="briup">🔆 Bright +</button>
         </div>
       </div>
 
       <div class="header sec">Power &amp; Session</div>
       <div class="card-section">
-        <div class="btn-row two">
-          <button data-sys="displaysleep">Sleep Display</button>
+        <div class="btn-row">
           <button data-sys="sleep">System Sleep</button>
           <button class="danger" data-sys="logout" data-confirm>Log Out</button>
           <button class="danger" data-sys="restart" data-confirm>Restart</button>
@@ -347,20 +338,6 @@
       });
     });
 
-    const bri = $('bri');
-    bri.addEventListener('input', () => { $('bri-val').textContent = bri.value + '%'; });
-    bri.addEventListener('change', () => act('/api/system/action', { command: 'brightness', value: Number(bri.value) }));
-
-    async function loadSystem() {
-      const info = await api('/api/system');
-      if (info.brightness) {
-        bri.disabled = false;
-        $('bri-card').classList.remove('disabled');
-        if (info.brightnessValue != null) bri.value = info.brightnessValue;
-        $('bri-val').textContent = bri.value + '%';
-      }
-    }
-
     // ------------------------------------------------------------ interface options (per phone)
     document.querySelectorAll('[data-ui]').forEach(box => {
       const cls = box.dataset.ui, key = 'dw-' + cls;
@@ -474,18 +451,18 @@
         list.append(d); return;
       }
       for (const vol of vols) {
-        const card = document.createElement('div'); card.className = 'volume-card';
+        const card = document.createElement('div'); card.className = 'volume-card'; card.title = 'Open in Finder on the Mac';
         const name = document.createElement('div'); name.className = 'volume-name'; name.textContent = vol.name;
-        const open = document.createElement('button'); open.textContent = 'Open';
-        const openIt = () => act('/api/volumes/action', { action: 'open', name: vol.name });
-        name.addEventListener('click', openIt); open.addEventListener('click', openIt);
-        const eject = document.createElement('button'); eject.textContent = 'Eject';
-        eject.addEventListener('click', async () => {
+        const eject = Object.assign(document.createElement('button'), { className: 'eject', textContent: '⏏︎', title: 'Eject' });
+        eject.setAttribute('aria-label', 'Eject ' + vol.name);
+        card.addEventListener('click', () => act('/api/volumes/action', { action: 'open', name: vol.name }).then(r => r && toast(`Opened ${vol.name} on the Mac`)));
+        eject.addEventListener('click', async e => {
+          e.stopPropagation();
           eject.disabled = true;
           await act('/api/volumes/action', { action: 'eject', name: vol.name });
           loadVolumes().catch(() => {});
         });
-        card.append(name, open, eject); list.append(card);
+        card.append(name, eject); list.append(card);
       }
     }
 
@@ -575,7 +552,6 @@
     function start() {
       authed = true;
       timers.forEach(clearInterval); timers = [];
-      loadSystem().catch(() => {});
       poll(loadDock, 4000);
       poll(loadVolumes, 5000);
       poll(loadPlaces, 30000);

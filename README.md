@@ -6,9 +6,9 @@ No dependencies beyond Node.js 18+.
 
 | Page | What it does |
 |---|---|
-| 1. **Media & power** | Play/pause, previous/next, volume, mute, optional brightness slider; sleep display, sleep, log out, restart, shut down (destructive actions need a second tap) |
-| 2. **Dock** (start page) | Finder, your pinned apps and other running apps, with running-dots. Tap: bring to front · double tap: App Exposé · hold: full screen · triple tap: quit |
-| 3. **Folders & drives** | Open Desktop, Documents, Downloads, iCloud Drive, Google Drive and OneDrive in Finder; open or eject external drives |
+| 1. **Media & power** | Play/pause, previous/next, volume, mute, brightness up/down; sleep display, sleep, log out, restart, shut down (destructive actions need a second tap) |
+| 2. **Dock** (start page) | Finder, your pinned apps and other running apps, with running-dots. Tap: bring to front (tap again to hide) · double tap: App Exposé · hold: full screen · triple tap: quit |
+| 3. **Folders & drives** | Open Desktop, Documents, Downloads, iCloud Drive, Google Drive and OneDrive in Finder; tap a drive to open it, ⏏︎ to eject |
 | 4. **Interface** | Hide section titles, app names or running markers (saved per phone) |
 
 The layout adapts to the screen: 4 columns on a portrait phone, more in landscape or on a tablet.
@@ -55,9 +55,9 @@ node server.js
 
 It prints the addresses and PIN. Environment variables: `PORT` (default 8511), `HOST` (default `0.0.0.0`),
 `DOCKWEB_PIN` (use a fixed PIN, never written to disk), `DOCKWEB_DATA` (folder for `config.json` and the icon cache;
-the app uses `~/Library/Application Support/DockWeb`). When run this way, macOS permissions go to your terminal app.
+the app uses `~/Library/Application Support/DockWeb`). When run this way, macOS permissions go to your terminal app, and media/keyboard buttons are unavailable
+(those events are posted by the `DockWeb.app` binary).
 
-Optional: `brew install brightness` enables the brightness slider (may not work on Apple Silicon built-in displays).
 
 ## Security
 
