@@ -451,7 +451,7 @@
       apps.forEach(app => {
         let tile = tiles.get(app.id);
         if (!tile) { tile = makeTile(app); tiles.set(app.id, tile); }
-        else if (app.iconUrl && !tile.querySelector('img')) tile.replaceChild(makeIcon(app), tile.firstChild);
+        else if (app.iconUrl && tile.firstChild.getAttribute('src') !== app.iconUrl) tile.replaceChild(makeIcon(app), tile.firstChild); // new render (appearance changed)
         tile.querySelector('.status-dot').classList.toggle('active', app.isRunning);
         if (!app.pinned && !order.includes(sep)) order.push(sep);
         order.push(tile);

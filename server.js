@@ -18,6 +18,9 @@ const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 const HOME = os.homedir();
 const DOCK_PLIST = path.join(HOME, 'Library/Preferences/com.apple.dock.plist');
 const FINDER = '/System/Library/CoreServices/Finder.app';
+// Start each run with fresh icons, so a restart (or Restart Server in the menu) picks up any change
+// in the Mac's icon appearance. While running, the appearance check in iconVersion() covers it.
+fs.rmSync(ICONS_DIR, { recursive: true, force: true });
 fs.mkdirSync(ICONS_DIR, { recursive: true });
 
 // ---------------------------------------------------------------- helpers
@@ -138,23 +141,46 @@ async function getDockApps() {
   return apps;
 }
 
+// Rendered icons depend on the Mac's icon appearance (default, dark, clear, tinted) and on the app
+// version, so both go into the cache key: changing Appearance or updating an app re-renders the icon.
+const APPEARANCE_KEYS = ['AppleIconAppearanceTheme', 'AppleIconAppearanceTintColor',
+  'AppleIconAppearanceCustomTintColor', 'AppleInterfaceStyle'];
+let appearance = { at: 0, value: '' };
+async function iconAppearance() {
+  if (Date.now() - appearance.at < 10000) return appearance.value;
+  const values = await Promise.all(APPEARANCE_KEYS.map(k => run('defaults', ['read', '-g', k]).catch(() => '')));
+  appearance = { at: Date.now(), value: values.join('|') };
+  return appearance.value;
+}
+async function iconVersion(app) {
+  let mtime = 0;
+  try { mtime = (await fsp.stat(path.join(app.path, 'Contents', 'Info.plist'))).mtimeMs; } catch {}
+  return crypto.createHash('sha1').update(`${await iconAppearance()}|${mtime}|${ICON_PX}`).digest('hex').slice(0, 8);
+}
+
 const iconJobs = new Map();
 async function ensureIcon(app) {
-  const png = path.join(ICONS_DIR, `${app.id}-${ICON_PX}.png`);
-  if (fs.existsSync(png)) return true;
-  if (!iconJobs.has(app.id)) {
-    iconJobs.set(app.id, (async () => {
+  const ver = await iconVersion(app);
+  const png = path.join(ICONS_DIR, `${app.id}-${ver}.png`);
+  if (fs.existsSync(png)) return ver;
+  const job = `${app.id}-${ver}`;
+  if (!iconJobs.has(job)) {
+    iconJobs.set(job, (async () => {
       try {
         await jxa('icon.js', app.path, png, String(ICON_PX));
-        return true;
+        // Drop renders made for an earlier appearance or app version.
+        for (const f of await fsp.readdir(ICONS_DIR)) {
+          if (f.startsWith(app.id + '-') && f !== path.basename(png)) fsp.unlink(path.join(ICONS_DIR, f)).catch(() => {});
+        }
+        return ver;
       } catch (err) {
         console.error(`icon for ${app.label} failed:`, err.message);
         try { await fsp.unlink(png); } catch {}
-        return false;
-      } finally { iconJobs.delete(app.id); }
+        return null;
+      } finally { iconJobs.delete(job); }
     })());
   }
-  return iconJobs.get(app.id);
+  return iconJobs.get(job);
 }
 
 async function dockPayload() {
@@ -163,7 +189,7 @@ async function dockPayload() {
   return apps.map((a, i) => ({
     id: a.id,
     label: a.label,
-    iconUrl: icons[i] ? `/icons/${a.id}.png` : null,
+    iconUrl: icons[i] ? `/icons/${a.id}-${icons[i]}.png` : null,
     isRunning: a.isRunning,
     pinned: a.pinned
   }));
@@ -358,10 +384,11 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/volumes') return send(res, 200, await getExternalVolumes());
       if (pathname === '/api/system') return send(res, 200, await systemInfo());
       if (pathname === '/api/places') return send(res, 200, (await getPlaces()).map(({ id, name, sub, kind }) => ({ id, name, sub: sub || '', kind })));
-      const m = pathname.match(/^\/icons\/([a-f0-9]{10})\.png$/);
+      const m = pathname.match(/^\/icons\/([a-f0-9]{10}-[a-f0-9]{8})\.png$/);
       if (m) {
-        const file = path.join(ICONS_DIR, `${m[1]}-${ICON_PX}.png`);
-        if (fs.existsSync(file)) return send(res, 200, await fsp.readFile(file), 'image/png', { 'Cache-Control': 'private, max-age=86400' });
+        // The version is part of the URL, so the phone can cache each render forever.
+        const file = path.join(ICONS_DIR, `${m[1]}.png`);
+        if (fs.existsSync(file)) return send(res, 200, await fsp.readFile(file), 'image/png', { 'Cache-Control': 'private, max-age=31536000, immutable' });
       }
       return send(res, 404, { error: 'Not found' });
     }
