@@ -191,10 +191,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         if !pin.isEmpty { menu.addItem(item("PIN: \(pin)", #selector(copyItem(_:)), represented: pin)) }
-        menu.addItem(item("Change PIN", #selector(changePin)))
-        menu.addItem(item("Connection Help", #selector(showHelp)))
 
         menu.addItem(.separator())
+        menu.addItem(item("Change PIN", #selector(changePin)))
+        menu.addItem(item("Help", #selector(showHelp)))
         menu.addItem(item("Open in Browser", #selector(openBrowser)))
         if AXIsProcessTrusted() {
             menu.addItem(disabled("✓ Accessibility allowed"))

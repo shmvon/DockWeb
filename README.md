@@ -28,7 +28,7 @@ the server into `/Applications/DockWeb.app`. Use `./build.sh --no-install` to bu
 
 DockWeb then lives in the **menu bar**. Its menu shows the addresses to open on your phone, labelled
 Tailscale (including your MagicDNS name), Wi-Fi / LAN or other VPN, and the PIN (click either to copy). It also has
-**Change PIN** (signs out all phones), **Connection Help** (direct Wi-Fi vs Tailscale), an **Open at Login** toggle,
+**Change PIN** (signs out all phones), **Help** (connecting directly over Wi-Fi or with Tailscale), an **Open at Login** toggle,
 the log and a restart button.
 
 ### macOS permissions (one-time)
