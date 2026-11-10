@@ -6,10 +6,10 @@ No dependencies beyond Node.js 18+.
 
 | Page | What it does |
 |---|---|
-| 1. **Media & power** | Play/pause, previous/next, volume, mute, brightness up/down; sleep display, sleep, log out, restart, shut down (destructive actions need a second tap) |
+| 1. **Media & power** | Icon tiles like the Dock: play/pause, previous/next, mute, volume, display sleep, brightness; sleep, restart, shut down, log out (destructive actions need a second tap) |
 | 2. **Dock** (start page) | Finder, your pinned apps and other running apps, with running-dots. Tap: bring to front (tap again to hide) · double tap: App Exposé · hold: full screen · triple tap: quit |
 | 3. **Folders & drives** | Open Desktop, Documents, Downloads, iCloud Drive, Google Drive and OneDrive in Finder; tap a drive to open it, ⏏︎ to eject |
-| 4. **Interface** | Hide section titles, app names or running markers (saved per phone) |
+| 4. **Interface** | Hide section titles, icon labels or running markers (saved per phone) |
 
 The layout adapts to the screen: 4 columns on a portrait phone, more in landscape or on a tablet.
 Swipe sideways (or use the dots / arrow keys) to switch pages.
