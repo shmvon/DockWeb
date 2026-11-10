@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var buffer = ""
     private var urls: [(url: String, label: String)] = []
     private var pin = ""
-    private var status = "Starting…"
+    private var status = "Starting"
     private var quitting = false
     private var restartDelay: TimeInterval = 1
 
@@ -85,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return fail("Node.js 18+ not found. Install it (brew install node), then Restart Server.")
         }
         freePort()
-        urls = []; pin = ""; status = "Starting…"; buffer = ""
+        urls = []; pin = ""; status = "Starting"; buffer = ""
 
         let p = Process()
         p.executableURL = URL(fileURLWithPath: node)
@@ -140,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         server = nil
         writeLog("--- server exited with code \(code)\n")
         guard !quitting else { return }
-        if !status.hasPrefix("Port") { status = "Server stopped, restarting…" }
+        if !status.hasPrefix("Port") { status = "Server stopped, restarting" }
         let delay = restartDelay
         restartDelay = min(restartDelay * 2, 30)
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
@@ -191,15 +191,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         if !pin.isEmpty { menu.addItem(item("PIN: \(pin)", #selector(copyItem(_:)), represented: pin)) }
-        menu.addItem(item("Change PIN…", #selector(changePin)))
-        menu.addItem(item("Connection Help…", #selector(showHelp)))
+        menu.addItem(item("Change PIN", #selector(changePin)))
+        menu.addItem(item("Connection Help", #selector(showHelp)))
 
         menu.addItem(.separator())
         menu.addItem(item("Open in Browser", #selector(openBrowser)))
         if AXIsProcessTrusted() {
             menu.addItem(disabled("✓ Accessibility allowed"))
         } else {
-            menu.addItem(item("⚠︎ Allow Accessibility (media keys, gestures)…", #selector(openAccessibility)))
+            menu.addItem(item("⚠︎ Allow Accessibility (media keys, gestures)", #selector(openAccessibility)))
         }
         let login = item("Open at Login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -293,7 +293,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let pick = { (label: String) in self.urls.first { $0.label == label }?.url }
         let lan = pick("Wi-Fi / LAN") ?? "the Wi-Fi / LAN address"
-        let ts = pick("Tailscale") ?? "the Tailscale address (…ts.net)"
+        let ts = pick("Tailscale") ?? "the Tailscale address (ending in .ts.net)"
         let alert = NSAlert()
         alert.messageText = "Connecting your phone"
         alert.informativeText = """
